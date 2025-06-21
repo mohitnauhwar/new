@@ -1,55 +1,55 @@
 import streamlit as st
 import pandas as pd
+import joblib
 import matplotlib.pyplot as plt
+import os
 
-# Load data
-st.title("🎬 TMDB Movie Dataset EDA")
-st.markdown("Explore the TMDB 5000 Movie dataset with interactive charts.")
+st.set_page_config(page_title="Netflix EDA & Predictor", layout="centered")
 
-# Upload CSV file
-uploaded_file = st.file_uploader("Upload your TMDB Movie CSV file", type=["csv"])
+st.title("🎬 Netflix Prize Data Exploration")
 
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
-    
-    # Show raw data
-    st.subheader("📊 Raw Data Sample")
-    st.dataframe(df.head())
+# Load Data
+if os.path.exists("processed_data.csv"):
+    df = pd.read_csv("processed_data.csv")
+    st.subheader("📊 Sample of Dataset")
+    st.dataframe(df.head(20))
 
-    # Display available columns
-    st.markdown("### 📋 Available Columns")
+    # Show columns
+    st.markdown("### 🧾 Available Columns:")
     st.write(df.columns.tolist())
 
-    # Plot: Vote Average Distribution
-    if 'vote_average' in df.columns:
-        st.subheader("⭐ Vote Average Distribution")
-        fig1, ax1 = plt.subplots()
-        df['vote_average'].value_counts().sort_index().plot(kind='bar', ax=ax1)
-        ax1.set_xlabel("Vote Average")
-        ax1.set_ylabel("Number of Movies")
-        st.pyplot(fig1)
+    # Rating distribution
+    if 'rating' in df.columns:
+        st.subheader("⭐ Rating Distribution")
+        fig, ax = plt.subplots()
+        df['rating'].value_counts().sort_index().plot(kind='bar', ax=ax)
+        ax.set_xlabel("Rating")
+        ax.set_ylabel("Frequency")
+        st.pyplot(fig)
     else:
-        st.warning("Column `vote_average` not found in your dataset.")
-
-    # Plot: Vote Count Distribution
-    if 'vote_count' in df.columns:
-        st.subheader("🗳 Vote Count Distribution")
-        fig2, ax2 = plt.subplots()
-        df['vote_count'].hist(bins=30, ax=ax2)
-        ax2.set_xlabel("Vote Count")
-        ax2.set_ylabel("Number of Movies")
-        st.pyplot(fig2)
-    else:
-        st.warning("Column `vote_count` not found in your dataset.")
-
-    # Optional: Movie filter by rating
-    st.subheader("🎯 Top Rated Movies Filter")
-    min_votes = st.slider("Minimum Vote Count", 0, int(df['vote_count'].max()), 1000)
-    min_rating = st.slider("Minimum Vote Average", 0.0, 10.0, 7.5)
-
-    filtered = df[(df['vote_average'] >= min_rating) & (df['vote_count'] >= min_votes)]
-    st.write(f"Found {len(filtered)} movies with vote average ≥ {min_rating} and vote count ≥ {min_votes}.")
-    st.dataframe(filtered[['title', 'vote_average', 'vote_count']].sort_values(by='vote_average', ascending=False))
-
+        st.warning("Column 'rating' not found in dataset.")
 else:
-    st.info("📥 Please upload your `tmdb_5000_movies.csv` file to begin.")
+    st.error("❌ 'processed_data.csv' not found. Please ensure the file is in the same directory as app.py.")
+
+# Load Model
+if os.path.exists("netflix_model.pkl"):
+    model = joblib.load("netflix_model.pkl")
+    st.success("✅ Model loaded successfully.")
+else:
+    model = None
+    st.warning("⚠️ 'netflix_model.pkl' not found. Prediction will be disabled.")
+
+# Prediction Interface
+if model:
+    st.subheader("🎯 Predict User-Movie Rating")
+    user_input = st.number_input("Enter User ID", min_value=1, max_value=500000, value=1)
+    movie_input = st.number_input("Enter Movie ID", min_value=1, max_value=20000, value=1)
+
+    if st.button("Predict Rating"):
+        try:
+            pred = model.predict([[user_input, movie_input]])
+            st.success(f"Predicted Rating: {pred[0]:.2f}")
+        except Exception as e:
+            st.error(f"Prediction failed: {e}")
+else:
+    st.info("Upload the model to enable prediction feature.")
